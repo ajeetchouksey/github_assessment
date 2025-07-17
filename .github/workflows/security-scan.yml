@@ -4,20 +4,22 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  # Permissions for Code Scanning
+permissions:
+  security-events: write
 
 jobs:
   codeql-analysis:
     name: CodeQL Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
-        with:
-          # Include languages present in this repository; scanning YAML workflows
-          languages: 'yaml'
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
