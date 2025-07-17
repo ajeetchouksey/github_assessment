@@ -16,7 +16,8 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
-          languages: [ 'javascript', 'typescript', 'python' ]
+          # Specify languages as a comma-separated string
+          languages: 'javascript,typescript,python'
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v2
