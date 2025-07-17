@@ -16,8 +16,8 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
-          # Specify languages as a comma-separated string
-          languages: 'javascript,typescript,python'
+          # Include languages present in this repository; scanning YAML workflows
+          languages: 'yaml'
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v2
