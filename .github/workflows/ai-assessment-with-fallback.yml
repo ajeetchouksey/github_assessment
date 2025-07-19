@@ -1,0 +1,587 @@
+# AI-Powered Repository Assessment with Intelligent Fallback
+# Prefers Claude Sonnet 3.5, gracefully falls back to OpenAI GPT-4 or GitHub Copilot
+
+name: AI Repository Assessment
+
+on:
+  # Scheduled assessment (weekly on Mondays at 9 AM UTC)
+  schedule:
+    - cron: '0 9 * * 1'
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      assessment_type:
+        description: 'Type of assessment to perform'
+        required: true
+        default: 'comprehensive'
+        type: choice
+        options:
+          - comprehensive
+          - security-focused
+          - compliance-audit
+          - migration-readiness
+      
+      output_version:
+        description: 'Assessment report version (e.g., 1.2.0)'
+        required: true
+        default: 'auto-increment'
+        type: string
+      
+      ai_preference:
+        description: 'AI Provider Preference (auto-fallback enabled)'
+        required: true
+        default: 'claude-preferred'
+        type: choice
+        options:
+          - claude-preferred
+          - openai-preferred
+          - github-copilot-preferred
+          - auto-detect-best
+
+  # Trigger on significant repository changes
+  push:
+    branches: [main, master]
+    paths:
+      - '.github/workflows/**'
+      - 'security/**'
+      - 'SECURITY.md'
+      - 'README.md'
+      - 'package.json'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - '*.tf'
+      - '*.tfvars'
+
+jobs:
+  ai-assessment:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      security-events: read
+    
+    env:
+      AI_PREFERENCE: ${{ github.event.inputs.ai_preference || 'claude-preferred' }}
+      ASSESSMENT_TYPE: ${{ github.event.inputs.assessment_type || 'comprehensive' }}
+      OUTPUT_VERSION: ${{ github.event.inputs.output_version || 'auto-increment' }}
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for comprehensive analysis
+    
+    - name: Setup Python Environment
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install AI Dependencies
+      run: |
+        echo "Installing dependencies for multiple AI providers..."
+        pip install anthropic  # Claude
+        pip install openai     # OpenAI GPT
+        pip install requests   # GitHub API
+        pip install python-dotenv
+        pip install GitPython
+        pip install PyYAML
+    
+    - name: Detect Available AI Providers
+      id: ai-detection
+      run: |
+        echo "Detecting available AI providers..."
+        
+        # Function to check if secret exists (GitHub Actions doesn't allow direct secret checking)
+        # We'll attempt to use secrets and handle failures gracefully in the Python script
+        
+        preference="${{ env.AI_PREFERENCE }}"
+        echo "User preference: $preference"
+        
+        # Set provider priority based on preference
+        if [[ "$preference" == "claude-preferred" ]]; then
+          provider_priority="claude,openai,github"
+        elif [[ "$preference" == "openai-preferred" ]]; then
+          provider_priority="openai,claude,github"  
+        elif [[ "$preference" == "github-copilot-preferred" ]]; then
+          provider_priority="github,claude,openai"
+        else
+          provider_priority="claude,openai,github"  # auto-detect-best defaults to Claude first
+        fi
+        
+        echo "Provider priority: $provider_priority"
+        echo "provider_priority=$provider_priority" >> $GITHUB_OUTPUT
+    
+    - name: Validate Assessment Framework
+      run: |
+        echo "Validating assessment framework files..."
+        if [ ! -f "docs/gh-assessment-template.md" ]; then
+          echo "❌ gh-assessment-template.md not found"
+          exit 1
+        fi
+        if [ ! -f "docs/gh-assessment-prompt.md" ]; then
+          echo "❌ gh-assessment-prompt.md not found"
+          exit 1
+        fi
+        echo "✅ Assessment framework files validated"
+    
+    - name: Generate Repository Context
+      id: repo-context
+      run: |
+        echo "Generating repository context for AI analysis..."
+        
+        # Create repository analysis
+        cat > repo_context.md << 'EOF'
+        # Repository Context for Assessment
+        
+        **Repository:** ${{ github.repository }}
+        **Branch:** ${{ github.ref_name }}
+        **Commit:** ${{ github.sha }}
+        **Trigger:** ${{ github.event_name }}
+        **Assessment Type:** ${{ env.ASSESSMENT_TYPE }}
+        **Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        ## Repository Structure
+        EOF
+        
+        # Add repository structure (limit to prevent token overflow)
+        echo '```' >> repo_context.md
+        find . -type f -name ".*" -prune -o -type f -print | head -50 | sort >> repo_context.md
+        echo '```' >> repo_context.md
+        
+        # Add key file contents
+        echo "" >> repo_context.md
+        echo "## Key Configuration Files" >> repo_context.md
+        
+        # README content
+        if [ -f "README.md" ]; then
+          echo "### README.md" >> repo_context.md
+          echo '```markdown' >> repo_context.md
+          head -30 README.md >> repo_context.md
+          echo '```' >> repo_context.md
+        fi
+        
+        # Package/dependency files (focus on smaller files to control context size)
+        for file in package.json requirements.txt *.tf; do
+          if [ -f "$file" ]; then
+            echo "### $file" >> repo_context.md
+            echo '```' >> repo_context.md
+            head -20 "$file" >> repo_context.md
+            echo '```' >> repo_context.md
+          fi
+        done
+        
+        echo "repo_context_file=repo_context.md" >> $GITHUB_OUTPUT
+    
+    - name: Determine Assessment Version
+      id: version
+      run: |
+        if [ "${{ env.OUTPUT_VERSION }}" = "auto-increment" ]; then
+          # Find latest assessment report and increment version
+          latest_version=$(find . -name "gh-assessment-report-v*.md" 2>/dev/null | \
+            sed 's/.*v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/' | \
+            sort -V | tail -1)
+          
+          if [ -z "$latest_version" ]; then
+            new_version="1.0.0"
+          else
+            # Increment minor version
+            IFS='.' read -r major minor patch <<< "$latest_version"
+            new_version="$major.$((minor + 1)).0"
+          fi
+        else
+          new_version="${{ env.OUTPUT_VERSION }}"
+        fi
+        
+        echo "assessment_version=$new_version" >> $GITHUB_OUTPUT
+        echo "Assessment version: $new_version"
+    
+    - name: Run AI Assessment with Fallback
+      id: ai-assessment
+      env:
+        ASSESSMENT_VERSION: ${{ steps.version.outputs.assessment_version }}
+        PROVIDER_PRIORITY: ${{ steps.ai-detection.outputs.provider_priority }}
+      run: |
+        cat > ai_assessment.py << 'EOF'
+        import os
+        import sys
+        from datetime import datetime
+        
+        def try_claude_assessment(template_content, prompt_content, repo_context):
+            """Try Claude assessment first (preferred)"""
+            try:
+                from anthropic import Anthropic
+                
+                api_key = os.environ.get('ANTHROPIC_API_KEY')
+                if not api_key:
+                    print("⚠️ ANTHROPIC_API_KEY not available")
+                    return None, "No API key"
+                
+                client = Anthropic(api_key=api_key)
+                
+                assessment_prompt = f"""
+        I need you to conduct a comprehensive GitHub repository assessment using the provided framework.
+        
+        **Assessment Framework:**
+        
+        TEMPLATE:
+        {template_content}
+        
+        AUTOMATION PROMPT:
+        {prompt_content}
+        
+        **Repository Context:**
+        {repo_context}
+        
+        **Assessment Requirements:**
+        - Assessment Type: {os.environ.get('ASSESSMENT_TYPE', 'comprehensive')}
+        - Target Version: {os.environ.get('ASSESSMENT_VERSION', '1.0.0')}
+        - Focus: Terraform infrastructure repository with Azure focus
+        
+        Please:
+        1. Analyze the repository using the assessment template structure
+        2. Apply technology-specific parameters for Terraform/Infrastructure
+        3. Generate specific findings based on the actual repository content
+        4. Provide actionable recommendations with implementation details
+        5. Include compliance calculations and severity ratings
+        6. Create a complete assessment report with proper versioning
+        
+        **Critical Requirements:**
+        - Replace ALL template placeholders with actual data
+        - Base all findings on evidence from the repository context
+        - Provide specific, implementable recommendations
+        - Ensure version consistency throughout the report
+        - Focus on Terraform best practices and Azure infrastructure
+        
+        Generate the complete assessment report in Markdown format, ready to save as a file.
+                """
+                
+                response = client.messages.create(
+                    model='claude-3-5-sonnet-20241022',
+                    max_tokens=4000,
+                    temperature=0.1,
+                    messages=[{"role": "user", "content": assessment_prompt}]
+                )
+                
+                content = response.content[0].text
+                print("✅ Claude assessment completed successfully")
+                return content, "claude-3-5-sonnet"
+                
+            except Exception as e:
+                print(f"❌ Claude assessment failed: {str(e)}")
+                return None, str(e)
+        
+        def try_openai_assessment(template_content, prompt_content, repo_context):
+            """Try OpenAI GPT-4 as fallback"""
+            try:
+                import openai
+                
+                api_key = os.environ.get('OPENAI_API_KEY')
+                if not api_key:
+                    print("⚠️ OPENAI_API_KEY not available")
+                    return None, "No API key"
+                
+                client = openai.OpenAI(api_key=api_key)
+                
+                assessment_prompt = f"""
+        You are a senior DevOps engineer conducting a comprehensive GitHub repository assessment.
+        
+        **Assessment Framework:**
+        
+        TEMPLATE:
+        {template_content}
+        
+        AUTOMATION PROMPT:
+        {prompt_content}
+        
+        **Repository Context:**
+        {repo_context}
+        
+        **Assessment Requirements:**
+        - Assessment Type: {os.environ.get('ASSESSMENT_TYPE', 'comprehensive')}
+        - Target Version: {os.environ.get('ASSESSMENT_VERSION', '1.0.0')}
+        - Focus: Terraform infrastructure repository with Azure focus
+        
+        Please analyze this repository and generate a comprehensive assessment report following the template structure. Ensure all findings are based on actual repository content and provide specific, actionable recommendations.
+                """
+                
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": assessment_prompt}],
+                    max_tokens=4000,
+                    temperature=0.1
+                )
+                
+                content = response.choices[0].message.content
+                print("✅ OpenAI GPT-4 assessment completed successfully")
+                return content, "gpt-4"
+                
+            except Exception as e:
+                print(f"❌ OpenAI assessment failed: {str(e)}")
+                return None, str(e)
+        
+        def try_github_assessment(template_content, prompt_content, repo_context):
+            """Try GitHub API as final fallback (simplified)"""
+            try:
+                import requests
+                
+                token = os.environ.get('GITHUB_TOKEN')
+                if not token:
+                    print("⚠️ GITHUB_TOKEN not available")
+                    return None, "No token"
+                
+                # This is a simplified fallback - in practice, GitHub Copilot API access 
+                # would require specific integration
+                print("⚠️ GitHub Copilot API integration not yet available via Actions")
+                return None, "GitHub Copilot API not accessible"
+                
+            except Exception as e:
+                print(f"❌ GitHub assessment failed: {str(e)}")
+                return None, str(e)
+        
+        def main():
+            # Read assessment framework files
+            try:
+                with open('docs/gh-assessment-template.md', 'r', encoding='utf-8') as f:
+                    template_content = f.read()
+                
+                with open('docs/gh-assessment-prompt.md', 'r', encoding='utf-8') as f:
+                    prompt_content = f.read()
+                
+                with open('repo_context.md', 'r', encoding='utf-8') as f:
+                    repo_context = f.read()
+            except Exception as e:
+                print(f"❌ Failed to read framework files: {str(e)}")
+                sys.exit(1)
+            
+            # Get provider priority
+            priority = os.environ.get('PROVIDER_PRIORITY', 'claude,openai,github').split(',')
+            print(f"Provider priority: {priority}")
+            
+            assessment_content = None
+            used_provider = None
+            
+            # Try providers in priority order
+            for provider in priority:
+                provider = provider.strip()
+                print(f"🔄 Trying {provider}...")
+                
+                if provider == 'claude':
+                    assessment_content, used_provider = try_claude_assessment(
+                        template_content, prompt_content, repo_context
+                    )
+                elif provider == 'openai':
+                    assessment_content, used_provider = try_openai_assessment(
+                        template_content, prompt_content, repo_context
+                    )
+                elif provider == 'github':
+                    assessment_content, used_provider = try_github_assessment(
+                        template_content, prompt_content, repo_context
+                    )
+                
+                if assessment_content:
+                    break
+                else:
+                    print(f"⚠️ {provider} failed, trying next provider...")
+            
+            if not assessment_content:
+                print("❌ All AI providers failed")
+                sys.exit(1)
+            
+            # Save assessment report
+            version = os.environ.get('ASSESSMENT_VERSION', '1.0.0')
+            filename = f"docs/gh-assessment-report-v{version}.md"
+            
+            try:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(assessment_content)
+                
+                print(f"✅ Assessment completed successfully")
+                print(f"📄 Report saved: {filename}")
+                print(f"🤖 Provider used: {used_provider}")
+                print(f"📏 Response length: {len(assessment_content)} characters")
+                
+                # Set outputs for GitHub Actions
+                with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                    f.write(f"assessment_file={filename}\n")
+                    f.write(f"assessment_success=true\n")
+                    f.write(f"used_provider={used_provider}\n")
+                    f.write(f"response_length={len(assessment_content)}\n")
+                
+            except Exception as e:
+                print(f"❌ Failed to save assessment: {str(e)}")
+                sys.exit(1)
+        
+        if __name__ == "__main__":
+            main()
+        EOF
+        
+        # Set environment variables for API access (only if secrets exist)
+        export ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}"
+        export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+        export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+        
+        python ai_assessment.py
+    
+    - name: Validate Assessment Output
+      if: steps.ai-assessment.outputs.assessment_success == 'true'
+      run: |
+        assessment_file="${{ steps.ai-assessment.outputs.assessment_file }}"
+        
+        echo "Validating assessment report: $assessment_file"
+        
+        # Check if file exists and has content
+        if [ ! -f "$assessment_file" ]; then
+          echo "❌ Assessment file not found"
+          exit 1
+        fi
+        
+        file_size=$(wc -c < "$assessment_file")
+        if [ "$file_size" -lt 1000 ]; then
+          echo "❌ Assessment file too small ($file_size bytes)"
+          exit 1
+        fi
+        
+        # Check for version consistency
+        filename_version=$(echo "$assessment_file" | sed 's/.*v\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/')
+        header_version=$(grep -m1 "Assessment Version:" "$assessment_file" | sed 's/.*v\?\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/' || echo "")
+        
+        if [ "$filename_version" != "$header_version" ] && [ -n "$header_version" ]; then
+          echo "⚠️ Version mismatch detected (filename: $filename_version, header: $header_version)"
+        fi
+        
+        # Count sections and findings
+        section_count=$(grep -c "^## " "$assessment_file" || echo "0")
+        finding_count=$(grep -c "❌\|✅\|⚠️" "$assessment_file" || echo "0")
+        
+        echo "✅ Assessment validation completed"
+        echo "📄 File size: $file_size bytes"
+        echo "📝 Sections: $section_count"
+        echo "🔍 Findings: $finding_count"
+        echo "🤖 Provider used: ${{ steps.ai-assessment.outputs.used_provider }}"
+        echo "📏 Response length: ${{ steps.ai-assessment.outputs.response_length }} characters"
+    
+    - name: Generate Assessment Summary
+      if: steps.ai-assessment.outputs.assessment_success == 'true'
+      id: summary
+      run: |
+        assessment_file="${{ steps.ai-assessment.outputs.assessment_file }}"
+        
+        # Extract key metrics from assessment
+        critical_count=$(grep -c "Critical" "$assessment_file" 2>/dev/null || echo "0")
+        major_count=$(grep -c "Major" "$assessment_file" 2>/dev/null || echo "0")
+        minor_count=$(grep -c "Minor" "$assessment_file" 2>/dev/null || echo "0")
+        
+        # Extract compliance scores if present
+        security_score=$(grep -o "Security.*[0-9]\+%" "$assessment_file" 2>/dev/null | head -1 | grep -o "[0-9]\+%" || echo "N/A")
+        quality_score=$(grep -o "Quality.*[0-9]\+%" "$assessment_file" 2>/dev/null | head -1 | grep -o "[0-9]\+%" || echo "N/A")
+        
+        # Create summary
+        cat > assessment_summary.md << EOF
+        # AI-Powered Assessment Summary
+        
+        **Repository:** ${{ github.repository }}
+        **Assessment Version:** ${{ steps.version.outputs.assessment_version }}
+        **AI Provider Used:** ${{ steps.ai-assessment.outputs.used_provider }}
+        **Assessment Type:** ${{ env.ASSESSMENT_TYPE }}
+        **Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        ## Key Metrics
+        - **Critical Issues:** $critical_count
+        - **Major Issues:** $major_count
+        - **Minor Issues:** $minor_count
+        - **Security Score:** $security_score
+        - **Quality Score:** $quality_score
+        
+        ## Assessment Report
+        📄 **Full Report:** [\`$assessment_file\`]($assessment_file)
+        
+        ## AI Provider Information
+        🤖 **Primary Choice:** ${{ env.AI_PREFERENCE }}
+        ✅ **Successfully Used:** ${{ steps.ai-assessment.outputs.used_provider }}
+        
+        ## Next Steps
+        1. Review the detailed assessment report
+        2. Prioritize Critical and Major findings
+        3. Create action items for recommendations
+        4. Schedule follow-up assessment after remediation
+        
+        ---
+        *Generated by AI-powered assessment with intelligent fallback*
+        EOF
+        
+        echo "summary_file=assessment_summary.md" >> $GITHUB_OUTPUT
+    
+    - name: Create Assessment Issue
+      if: steps.ai-assessment.outputs.assessment_success == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Read assessment summary
+          const summaryContent = fs.readFileSync('${{ steps.summary.outputs.summary_file }}', 'utf8');
+          
+          // Create issue
+          const issue = await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🤖 AI Assessment Report v${{ steps.version.outputs.assessment_version }} (${context.payload.inputs?.ai_preference || 'claude-preferred'})`,
+            body: summaryContent,
+            labels: ['assessment', 'ai-powered', 'automated', '${{ env.ASSESSMENT_TYPE }}', '${{ steps.ai-assessment.outputs.used_provider }}']
+          });
+          
+          console.log(`✅ Assessment issue created: ${issue.data.html_url}`);
+    
+    - name: Commit Assessment Report
+      if: steps.ai-assessment.outputs.assessment_success == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "AI Assessment Bot"
+        
+        assessment_file="${{ steps.ai-assessment.outputs.assessment_file }}"
+        summary_file="${{ steps.summary.outputs.summary_file }}"
+        
+        git add "$assessment_file" "$summary_file"
+        git commit -m "🤖 Add AI assessment report v${{ steps.version.outputs.assessment_version }}
+
+        - Assessment Type: ${{ env.ASSESSMENT_TYPE }}
+        - AI Provider: ${{ steps.ai-assessment.outputs.used_provider }}
+        - User Preference: ${{ env.AI_PREFERENCE }}
+        - Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        - Automated via GitHub Actions with intelligent AI fallback"
+        
+        git push
+        
+        echo "✅ Assessment report committed and pushed"
+    
+    - name: Upload Assessment Artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ai-assessment-v${{ steps.version.outputs.assessment_version }}
+        path: |
+          docs/gh-assessment-report-v*.md
+          assessment_summary.md
+          repo_context.md
+        retention-days: 90
+    
+    - name: Notification on Failure
+      if: failure()
+      run: |
+        echo "❌ AI assessment failed"
+        echo "Attempted preference: ${{ env.AI_PREFERENCE }}"
+        echo "Provider priority: ${{ steps.ai-detection.outputs.provider_priority }}"
+        echo ""
+        echo "Please check the workflow logs and verify:"
+        echo "1. At least one AI API key is configured:"
+        echo "   - ANTHROPIC_API_KEY (for Claude - preferred)"
+        echo "   - OPENAI_API_KEY (for GPT-4 fallback)"
+        echo "   - GITHUB_TOKEN (for GitHub integration)"
+        echo "2. Assessment framework files exist in docs/ folder"
+        echo "3. AI APIs are accessible from GitHub Actions"
+        echo ""
+        echo "💡 Tip: The workflow will automatically try available providers"
+        echo "   based on configured secrets, so you only need one working API key."

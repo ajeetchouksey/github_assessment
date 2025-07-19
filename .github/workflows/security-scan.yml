@@ -15,7 +15,7 @@ jobs:
     permissions:
       security-events: write
     steps:
-  - name: Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Check for supported code
@@ -29,7 +29,8 @@ jobs:
 
       - name: Skip CodeQL scan if no supported code
         if: steps.code-check.outputs.has_code == 'false'
-        run: echo "No supported code detected; skipping CodeQL scan."
+        run: |
+          echo "No supported code detected; skipping CodeQL scan."
 
       - name: Initialize CodeQL
         if: steps.code-check.outputs.has_code == 'true'

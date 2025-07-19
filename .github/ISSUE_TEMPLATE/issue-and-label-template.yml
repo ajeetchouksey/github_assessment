@@ -15,18 +15,15 @@ body:
       label: "Summary"
       description: "A brief summary of the issue"
       placeholder: "e.g. API endpoint returns 500"
-      required: true
   - type: textarea
     id: description
     attributes:
       label: "Description"
       description: "Describe the problem in detail"
       placeholder: "Steps to reproduce, expected vs. actual behavior, etc."
-      required: true
   - type: textarea
     id: environment
     attributes:
       label: "Environment"
       description: "Browser, OS, version, or any relevant environment details"
       placeholder: "e.g. Windows 11, Chrome 115"
-      required: false

@@ -1,0 +1,69 @@
+name: "Repository Management & DevOps Setup"
+description: "Comprehensive repository setup and automation"
+title: "🏗️ Repository Management – [Component/Feature]"
+labels:
+  - repository-setup
+  - devops
+  - automation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for issues related to repository management, DevOps setup, and automation workflows.
+  
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: "Issue Type"
+      description: "What type of repository management issue is this?"
+      options:
+        - "Workflow Automation"
+        - "Security Configuration"
+        - "Branch Protection"
+        - "Dependencies Management"
+        - "Templates & Standards"
+        - "CI/CD Pipeline"
+        - "Assessment Automation"
+        - "Other"
+      default: 0
+    validations:
+      required: true
+  
+  - type: input
+    id: component
+    attributes:
+      label: "Component/Feature"
+      description: "What specific component or feature does this relate to?"
+      placeholder: "e.g., GitHub Actions, Dependabot, CodeQL, etc."
+    validations:
+      required: true
+  
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "Detailed description of the issue or enhancement"
+      placeholder: "Describe what needs to be implemented, fixed, or improved"
+    validations:
+      required: true
+  
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Acceptance Criteria"
+      description: "What conditions must be met for this to be considered complete?"
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: false
+  
+  - type: textarea
+    id: related_issues
+    attributes:
+      label: "Related Issues"
+      description: "Link any related issues or dependencies"
+      placeholder: "Closes #X, Related to #Y, Depends on #Z"
+    validations:
+      required: false

@@ -1,0 +1,75 @@
+name: "Sub-Issue Tracker"
+description: "Track sub-issues for larger initiatives"
+title: "📋 [PARENT-ISSUE] Sub-Issue Tracker"
+labels:
+  - tracker
+  - sub-issues
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template tracks sub-issues for larger initiatives. Check off items as they are completed.
+  
+  - type: input
+    id: parent_issue
+    attributes:
+      label: "Parent Issue"
+      description: "Link to the main issue this tracks"
+      placeholder: "#1 - Main issue title"
+    validations:
+      required: true
+  
+  - type: checkboxes
+    id: repo_automation_tasks
+    attributes:
+      label: "Repository Automation (#1 - Automate repository creation)"
+      options:
+        - label: "#1.1 Define and validate workflow inputs (repo_name, description, visibility)"
+        - label: "#1.2 Implement the create repo logic (GitHub REST API or gh CLI)"
+        - label: "#1.3 Initialize default files (README, .gitignore, LICENSE)"
+        - label: "#1.4 Apply branch protection, labels, and topics via settings action"
+        - label: "#1.5 Secure and scope the token (secret management, least-privilege scopes)"
+        - label: "#1.6 End-to-end testing and documentation"
+  
+  - type: checkboxes
+    id: templates_standards
+    attributes:
+      label: "Templates & Standards (#2-#7)"
+      options:
+        - label: "#2 Add Pull Request Template"
+        - label: "#3 Add Dependabot configuration"
+        - label: "#4 Add basic branch protection rule"
+        - label: "#5 Add basic security scanning rule"
+        - label: "#6 Add analysis template"
+        - label: "#7 Add issue and label template"
+  
+  - type: checkboxes
+    id: assessment_automation
+    attributes:
+      label: "Assessment Automation (AI/Claude workflows)"
+      options:
+        - label: "Setup AI assessment workflow with fallback"
+        - label: "Configure Claude assessment integration"
+        - label: "Setup hybrid assessment preparation"
+        - label: "Create assessment template documentation"
+        - label: "Test assessment automation end-to-end"
+  
+  - type: checkboxes
+    id: security_compliance
+    attributes:
+      label: "Security & Compliance"
+      options:
+        - label: "Configure CodeQL security scanning"
+        - label: "Setup Dependabot security updates"
+        - label: "Implement branch protection rules"
+        - label: "Setup secret scanning"
+        - label: "Configure security policies"
+  
+  - type: textarea
+    id: additional_tasks
+    attributes:
+      label: "Additional Tasks"
+      description: "Any additional sub-issues not covered above"
+      placeholder: |
+        - [ ] Additional task 1
+        - [ ] Additional task 2

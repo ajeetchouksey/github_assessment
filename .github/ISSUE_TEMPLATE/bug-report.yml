@@ -1,0 +1,72 @@
+name: "Bug Report"
+description: "Report a bug or issue"
+title: "🐛 Bug: [Brief Description]"
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the sections below.
+  
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: "Bug Description"
+      description: "A clear and concise description of what the bug is"
+      placeholder: "Describe what happened and what you expected to happen"
+    validations:
+      required: true
+  
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: "Steps to Reproduce"
+      description: "Steps to reproduce the behavior"
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+  
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: "Expected Behavior"
+      description: "What you expected to happen"
+      placeholder: "A clear description of what you expected to happen"
+    validations:
+      required: true
+  
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: "Actual Behavior"
+      description: "What actually happened"
+      placeholder: "A clear description of what actually happened"
+    validations:
+      required: true
+  
+  - type: textarea
+    id: environment
+    attributes:
+      label: "Environment"
+      description: "Environment details"
+      placeholder: |
+        - OS: [e.g. Windows 11, macOS 12, Ubuntu 20.04]
+        - Browser: [e.g. Chrome 91, Firefox 89]
+        - Version: [e.g. 1.0.0]
+    validations:
+      required: false
+  
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: "Additional Context"
+      description: "Any additional context, screenshots, or logs"
+      placeholder: "Add any other context about the problem here"
+    validations:
+      required: false
