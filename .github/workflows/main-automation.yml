@@ -19,3 +19,7 @@ jobs:
   ensure-pr-templates-advanced:
     uses: ./.github/workflows/ensure-pr-templates-advanced.yml
     secrets: inherit
+
+  enable-advanced-security:
+    uses: ./.github/workflows/enable-advanced-security.yml
+    secrets: inherit

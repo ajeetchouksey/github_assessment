@@ -1,0 +1,26 @@
+name: Enable Advanced Security and Dependabot
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  enable-advanced-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable Advanced Security and Dependabot via GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Enable Advanced Security
+          gh api -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/$REPO" \
+            -f security_and_analysis='{"advanced_security":{"status":"enabled"},"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}}'
+          # Enable Dependabot alerts and security updates
+          gh api -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/$REPO" \
+            -f vulnerability_alerts=true
+          echo "Advanced Security and Dependabot features enabled."
