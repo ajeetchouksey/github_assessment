@@ -1,4 +1,4 @@
-# github_assessment
+# assessment
 
 ## Automated CODEOWNERS Management
 
