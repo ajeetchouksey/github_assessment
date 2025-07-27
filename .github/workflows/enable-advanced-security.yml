@@ -9,17 +9,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Enable Advanced Security and Dependabot via GitHub CLI
+      - name: Enable Advanced Security and Dependabot via GitHub CLI (private repos only)
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          gh api -X PATCH \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/$REPO" \
-            --input .github/scripts/enable-advanced-security.json
+          repo_visibility=$(gh repo view "$REPO" --json visibility -q .visibility)
+          if [ "$repo_visibility" = "PRIVATE" ]; then
+            gh api -X PATCH \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/$REPO" \
+              --input .github/scripts/enable-advanced-security.json
+            echo "Advanced Security enabled for private repo."
+          else
+            echo "Advanced Security is always enabled for public repos. Skipping."
+          fi
           gh api -X PATCH \
             -H "Accept: application/vnd.github+json" \
             "/repos/$REPO" \
             -f vulnerability_alerts=true
-          echo "Advanced Security and Dependabot features enabled."
+          echo "Dependabot features enabled."
