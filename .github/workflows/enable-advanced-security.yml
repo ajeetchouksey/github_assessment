@@ -8,6 +8,7 @@ jobs:
   enable-advanced-security:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Enable Advanced Security and Dependabot via GitHub CLI
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
