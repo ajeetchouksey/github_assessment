@@ -34,20 +34,19 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - run: |
+    - shell: bash
+      run: |
         mkdir -p .github
         if [ ! -f .github/dependabot.yml ]; then
-          cat <<EOF > .github/dependabot.yml
-version: 2
-updates:
-  - package-ecosystem: ${{ inputs.package-ecosystem }}
-    directory: ${{ inputs.directory }}
-    schedule:
-      interval: ${{ inputs.schedule-interval }}
-    open-pull-requests-limit: ${{ inputs.open-pull-requests-limit }}
-    rebase-strategy: ${{ inputs.rebase-strategy }}
-    versioning-strategy: ${{ inputs.versioning-strategy }}
-EOF
+          echo "version: 2" > .github/dependabot.yml
+          echo "updates:" >> .github/dependabot.yml
+          echo "  - package-ecosystem: ${{ inputs.package-ecosystem }}" >> .github/dependabot.yml
+          echo "    directory: ${{ inputs.directory }}" >> .github/dependabot.yml
+          echo "    schedule:" >> .github/dependabot.yml
+          echo "      interval: ${{ inputs.schedule-interval }}" >> .github/dependabot.yml
+          echo "    open-pull-requests-limit: ${{ inputs.open-pull-requests-limit }}" >> .github/dependabot.yml
+          echo "    rebase-strategy: ${{ inputs.rebase-strategy }}" >> .github/dependabot.yml
+          echo "    versioning-strategy: ${{ inputs.versioning-strategy }}" >> .github/dependabot.yml
           if [ "${{ inputs.allow }}" != "" ]; then
             echo "    allow: ${{ inputs.allow }}" >> .github/dependabot.yml
           fi
@@ -58,4 +57,3 @@ EOF
         else
           echo ".github/dependabot.yml already exists. No action taken."
         fi
-      shell: bash
