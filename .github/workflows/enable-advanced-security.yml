@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Enable Advanced Security and Dependabot via GitHub CLI
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           # Enable Advanced Security
