@@ -3,6 +3,10 @@ name: Main Repository Automation
 on:
   workflow_dispatch:
 
+concurrency:
+  group: main-automation-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ensure-codeowners:
     uses: ./.github/workflows/ensure-codeowners.yml

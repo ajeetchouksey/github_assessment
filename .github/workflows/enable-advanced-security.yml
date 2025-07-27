@@ -18,9 +18,8 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             "/repos/$REPO" \
             -f security_and_analysis='{"advanced_security":{"status":"enabled"},"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}}'
-          # Enable Dependabot alerts and security updates
-          gh api -X PATCH \
+          # Enable Dependabot alerts
+          gh api -X PUT \
             -H "Accept: application/vnd.github+json" \
-            "/repos/$REPO" \
-            -f vulnerability_alerts=true
+            "/repos/$REPO/vulnerability-alerts"
           echo "Advanced Security and Dependabot features enabled."
