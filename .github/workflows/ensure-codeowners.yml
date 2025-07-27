@@ -6,7 +6,7 @@ on:
     schedule:
         - cron: '0 2 * * 6' # Runs at 2:00 AM every Saturday
     push:
-        branches: [main]
+        branches: [main, 'feature/*']
 
 jobs:
     ensure-codeowners:

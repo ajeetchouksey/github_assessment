@@ -1,6 +1,9 @@
 import os, yaml, datetime
 
 def main():
+    # Ensure the PULL_REQUEST_TEMPLATE directory exists
+    os.makedirs('.github/PULL_REQUEST_TEMPLATE', exist_ok=True)
+    
     with open('templates.yaml') as f:
         templates = yaml.safe_load(f)
     for t in templates:
