@@ -1,0 +1,53 @@
+name: Ensure Advanced PR Templates
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'
+
+jobs:
+  ensure-pr-templates-advanced:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - uses: ./.github/actions/ensure-pr-templates-advanced
+        with:
+          templates: |
+            - name: feature.md
+              content: |
+                # Feature Pull Request
+                
+                ## Description
+                Please describe the new feature and its motivation.
+                
+                ## Checklist
+                - [ ] Code follows style guidelines
+                - [ ] Tests added/updated
+                - [ ] Documentation updated
+                
+                ## Date: {{DATE}}
+                ## Author: {{AUTHOR}}
+            - name: bugfix.md
+              content: |
+                # Bugfix Pull Request
+                
+                ## Description
+                Please describe the bug and how it was fixed.
+                
+                ## Checklist
+                - [ ] Bug is reproducible
+                - [ ] Fix is covered by tests
+                - [ ] Documentation updated
+                
+                ## Date: {{DATE}}
+                ## Author: {{AUTHOR}}
+          overwrite: 'true'
+          inject-date: 'true'
+          inject-author: 'true'

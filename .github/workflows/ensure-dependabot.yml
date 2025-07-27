@@ -1,0 +1,25 @@
+name: Ensure dependabot.yml
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'
+
+jobs:
+  ensure-dependabot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/ensure-dependabot
+        with:
+          package-ecosystem: 'npm'
+          directory: '/'
+          schedule-interval: 'weekly'
+          open-pull-requests-limit: '5'
+          rebase-strategy: 'auto'
+          versioning-strategy: 'auto'
+          allow: ''
+          ignore: ''

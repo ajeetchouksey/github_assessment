@@ -1,0 +1,21 @@
+name: Main Repository Automation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ensure-codeowners:
+    uses: ./.github/workflows/ensure-codeowners.yml
+    secrets: inherit
+
+  ensure-dependabot:
+    uses: ./.github/workflows/ensure-dependabot.yml
+    secrets: inherit
+
+  ensure-pr-template:
+    uses: ./.github/workflows/ensure-pr-template.yml
+    secrets: inherit
+
+  ensure-pr-templates-advanced:
+    uses: ./.github/workflows/ensure-pr-templates-advanced.yml
+    secrets: inherit
