@@ -1,0 +1,19 @@
+name: Ensure PR Template
+description: Creates a pull request template if it does not exist
+author: GitHub Copilot
+inputs:
+  template-content:
+    description: 'Content for the pull request template (Markdown)'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        mkdir -p .github
+        if [ ! -f .github/pull_request_template.md ]; then
+          echo "${{ inputs.template-content }}" > .github/pull_request_template.md
+          echo "Created .github/pull_request_template.md with provided content."
+        else
+          echo ".github/pull_request_template.md already exists. No action taken."
+        fi
+      shell: bash

@@ -1,0 +1,19 @@
+name: Ensure CODEOWNERS
+description: Creates a CODEOWNERS file if it does not exist
+author: GitHub Copilot
+inputs:
+  owner:
+    description: 'GitHub username or team to set as CODEOWNER'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        mkdir -p .github
+        if [ ! -f .github/CODEOWNERS ]; then
+          echo "* ${{ inputs.owner }}" > .github/CODEOWNERS
+          echo "Created .github/CODEOWNERS with default owner: ${{ inputs.owner }}"
+        else
+          echo ".github/CODEOWNERS already exists. No action taken."
+        fi
+      shell: bash

@@ -1,0 +1,61 @@
+name: Ensure dependabot.yml
+description: Creates a dependabot.yml file with all configuration options if it does not exist
+author: GitHub Copilot
+inputs:
+  package-ecosystem:
+    description: 'The package ecosystem (e.g., npm, pip, maven, etc.)'
+    required: true
+  directory:
+    description: 'Directory to scan for dependencies (e.g., /, /src, /backend)'
+    required: true
+  schedule-interval:
+    description: 'Update schedule interval (e.g., daily, weekly, monthly)'
+    required: true
+  open-pull-requests-limit:
+    description: 'Maximum number of open pull requests'
+    required: false
+    default: '5'
+  rebase-strategy:
+    description: 'Rebase strategy (auto, disabled, eager)'
+    required: false
+    default: 'auto'
+  versioning-strategy:
+    description: 'Versioning strategy (auto, widen, increase, lockfile-only, increase-if-necessary)'
+    required: false
+    default: 'auto'
+  allow:
+    description: 'Allow rules (YAML array as string)'
+    required: false
+    default: ''
+  ignore:
+    description: 'Ignore rules (YAML array as string)'
+    required: false
+    default: ''
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        mkdir -p .github
+        if [ ! -f .github/dependabot.yml ]; then
+          cat <<EOF > .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: ${{ inputs.package-ecosystem }}
+    directory: ${{ inputs.directory }}
+    schedule:
+      interval: ${{ inputs.schedule-interval }}
+    open-pull-requests-limit: ${{ inputs.open-pull-requests-limit }}
+    rebase-strategy: ${{ inputs.rebase-strategy }}
+    versioning-strategy: ${{ inputs.versioning-strategy }}
+EOF
+          if [ "${{ inputs.allow }}" != "" ]; then
+            echo "    allow: ${{ inputs.allow }}" >> .github/dependabot.yml
+          fi
+          if [ "${{ inputs.ignore }}" != "" ]; then
+            echo "    ignore: ${{ inputs.ignore }}" >> .github/dependabot.yml
+          fi
+          echo "Created .github/dependabot.yml with all configuration options."
+        else
+          echo ".github/dependabot.yml already exists. No action taken."
+        fi
+      shell: bash

@@ -1,0 +1,18 @@
+name: Ensure CODEOWNERS
+
+on:
+    workflow_call:
+    workflow_dispatch:
+    schedule:
+        - cron: '0 2 * * 6' # Runs at 2:00 AM every Saturday
+    push:
+        branches: [main]
+
+jobs:
+    ensure-codeowners:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/ensure-codeowners
+              with:
+                owner: '@ajeetchouksey'
