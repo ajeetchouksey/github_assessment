@@ -3,6 +3,10 @@ name: Main Repository Automation
 on:
   workflow_dispatch:
 
+concurrency:
+  group: main-automation-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ensure-codeowners:
     uses: ./.github/workflows/ensure-codeowners.yml
@@ -18,4 +22,8 @@ jobs:
 
   ensure-pr-templates-advanced:
     uses: ./.github/workflows/ensure-pr-templates-advanced.yml
+    secrets: inherit
+
+  enable-advanced-security:
+    uses: ./.github/workflows/enable-advanced-security.yml
     secrets: inherit
