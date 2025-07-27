@@ -13,13 +13,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
+          # Create JSON payload for security_and_analysis
+          cat > enable-advanced-security.json <<EOF
+{
+  "security_and_analysis": {
+    "advanced_security": {"status": "enabled"},
+    "secret_scanning": {"status": "enabled"},
+    "secret_scanning_push_protection": {"status": "enabled"}
+  }
+}
+EOF
           # Enable Advanced Security
           gh api -X PATCH \
             -H "Accept: application/vnd.github+json" \
             "/repos/$REPO" \
-            -f security_and_analysis='{"advanced_security":{"status":"enabled"},"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}}'
-          # Enable Dependabot alerts
-          gh api -X PUT \
+            --input enable-advanced-security.json
+          # Enable Dependabot alerts and security updates
+          gh api -X PATCH \
             -H "Accept: application/vnd.github+json" \
-            "/repos/$REPO/vulnerability-alerts"
+            "/repos/$REPO" \
+            -f vulnerability_alerts=true
           echo "Advanced Security and Dependabot features enabled."
