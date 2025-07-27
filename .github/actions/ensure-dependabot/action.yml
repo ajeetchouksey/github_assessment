@@ -40,18 +40,18 @@ runs:
         if [ ! -f .github/dependabot.yml ]; then
           echo "version: 2" > .github/dependabot.yml
           echo "updates:" >> .github/dependabot.yml
-          echo "  - package-ecosystem: ${{ inputs.package-ecosystem }}" >> .github/dependabot.yml
-          echo "    directory: ${{ inputs.directory }}" >> .github/dependabot.yml
+          echo "  - package-ecosystem: $INPUT_PACKAGE_ECOSYSTEM" >> .github/dependabot.yml
+          echo "    directory: $INPUT_DIRECTORY" >> .github/dependabot.yml
           echo "    schedule:" >> .github/dependabot.yml
-          echo "      interval: ${{ inputs.schedule-interval }}" >> .github/dependabot.yml
-          echo "    open-pull-requests-limit: ${{ inputs.open-pull-requests-limit }}" >> .github/dependabot.yml
-          echo "    rebase-strategy: ${{ inputs.rebase-strategy }}" >> .github/dependabot.yml
-          echo "    versioning-strategy: ${{ inputs.versioning-strategy }}" >> .github/dependabot.yml
-          if [ "${{ inputs.allow }}" != "" ]; then
-            echo "    allow: ${{ inputs.allow }}" >> .github/dependabot.yml
+          echo "      interval: $INPUT_SCHEDULE_INTERVAL" >> .github/dependabot.yml
+          echo "    open-pull-requests-limit: $INPUT_OPEN_PULL_REQUESTS_LIMIT" >> .github/dependabot.yml
+          echo "    rebase-strategy: $INPUT_REBASE_STRATEGY" >> .github/dependabot.yml
+          echo "    versioning-strategy: $INPUT_VERSIONING_STRATEGY" >> .github/dependabot.yml
+          if [ "$INPUT_ALLOW" != "" ]; then
+            echo "    allow: $INPUT_ALLOW" >> .github/dependabot.yml
           fi
-          if [ "${{ inputs.ignore }}" != "" ]; then
-            echo "    ignore: ${{ inputs.ignore }}" >> .github/dependabot.yml
+          if [ "$INPUT_IGNORE" != "" ]; then
+            echo "    ignore: $INPUT_IGNORE" >> .github/dependabot.yml
           fi
           echo "Created .github/dependabot.yml with all configuration options."
         else
