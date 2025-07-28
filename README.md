@@ -1,6 +1,5 @@
 # GitHub Repository Automation Toolkit
 
-
 [![Automation Status](https://img.shields.io/badge/automation-enterprise%20grade-brightgreen)](https://github.com/ajeetchouksey/github_assessment/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Reusable](https://img.shields.io/badge/reusable-tool-orange)](README.md)
