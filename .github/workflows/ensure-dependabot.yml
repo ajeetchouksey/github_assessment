@@ -13,7 +13,57 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/ensure-dependabot
+      - name: Check for package.json
+        id: npm_check
+        run: |
+          if [ -f package.json ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Check for requirements.txt (Python)
+        id: python_check
+        run: |
+          if [ -f requirements.txt ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Ensure dependabot for pip if requirements.txt exists
+        if: steps.python_check.outputs.exists == 'true'
+        uses: ./.github/actions/ensure-dependabot
+        with:
+          package-ecosystem: 'pip'
+          directory: '/'
+          schedule-interval: 'weekly'
+          open-pull-requests-limit: '5'
+          rebase-strategy: 'auto'
+          versioning-strategy: 'auto'
+          allow: ''
+          ignore: ''
+      - name: Check for pom.xml (Maven)
+        id: maven_check
+        run: |
+          if [ -f pom.xml ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Ensure dependabot for maven if pom.xml exists
+        if: steps.maven_check.outputs.exists == 'true'
+        uses: ./.github/actions/ensure-dependabot
+        with:
+          package-ecosystem: 'maven'
+          directory: '/'
+          schedule-interval: 'weekly'
+          open-pull-requests-limit: '5'
+          rebase-strategy: 'auto'
+          versioning-strategy: 'auto'
+          allow: ''
+          ignore: ''
+      - name: Ensure dependabot for npm if package.json exists
+        if: steps.npm_check.outputs.exists == 'true'
+        uses: ./.github/actions/ensure-dependabot
         with:
           package-ecosystem: 'npm'
           directory: '/'

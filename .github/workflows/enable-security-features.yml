@@ -23,15 +23,19 @@ jobs:
               "/repos/${{ github.repository }}" \
               -f private_vulnerability_reporting=true
           fi
-      - name: Enable Dependency Submission
+      - name: Enable Dependency Submission if package.json exists
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
-          gh api -X PATCH \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${{ github.repository }}" \
-            -f dependency_graph_enabled=true \
-            -f dependency_submission_enabled=true
+          if [ -f package.json ]; then
+            gh api -X PATCH \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}" \
+              -f dependency_graph_enabled=true \
+              -f dependency_submission_enabled=true
+          else
+            echo "No package.json found, skipping dependency submission enablement."
+          fi
       - name: Enable Dependabot Alerts and Security Updates
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}

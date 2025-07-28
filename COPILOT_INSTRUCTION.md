@@ -127,6 +127,15 @@ This document provides guidelines, best practices, and repo-specific tips for us
 
 ---
 
+## Changelog and Documentation Updates
+
+- Use Copilot to generate or update a `CHANGELOG.md` file that summarizes notable changes, enhancements, and bug fixes for each release.
+- Ensure that every significant code or configuration change is reflected in the changelog for transparency and traceability.
+- When making changes, use Copilot to help update user-facing documentation (e.g., `README.md`, usage guides) so it accurately reflects the latest features, usage instructions, and configuration options.
+- Always review Copilot-generated changelog entries and documentation updates for clarity, accuracy, and completeness before committing.
+- Encourage contributors to update both the changelog and relevant documentation as part of their pull requests.
+
+
 ## Additional Resources
 - [GitHub Copilot Documentation](https://docs.github.com/en/copilot)
 - [Copilot Labs](https://githubnext.com/projects/copilot-labs/)
