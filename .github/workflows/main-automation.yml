@@ -2,6 +2,12 @@ name: Main Repository Automation
 
 on:
   workflow_dispatch:
+    inputs:
+      skip_security:
+        description: 'Skip security features setup'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: main-automation-${{ github.ref }}
@@ -25,16 +31,14 @@ jobs:
     needs: ensure-pr-template
     secrets: inherit
 
-  enable-advanced-security:
-    uses: ./.github/workflows/enable-advanced-security.yml
-    secrets: inherit
-
-  enable-security-features:
-    uses: ./.github/workflows/enable-security-features.yml
-    needs: enable-advanced-security
+  enable-all-security-features:
+    if: ${{ inputs.skip_security != 'true' }}
+    uses: ./.github/workflows/enable-all-security-features.yml
+    needs: [ensure-codeowners, ensure-dependabot, ensure-pr-template, ensure-pr-templates-advanced]
     secrets: inherit
 
   verify-security-status:
+    if: ${{ inputs.skip_security != 'true' }}
     uses: ./.github/workflows/verify-security-status.yml
-    needs: enable-security-features
+    needs: enable-all-security-features
     secrets: inherit
