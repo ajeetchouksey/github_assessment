@@ -1,0 +1,29 @@
+{
+  "name": "github-assessment-demo",
+  "version": "1.0.0",
+  "description": "Sample Node.js project for testing GitHub automation",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0",
+    "eslint": "^8.42.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ajeetchouksey/github_assessment.git"
+  },
+  "keywords": ["automation", "security", "github-actions"],
+  "author": "Ajeet Chouksey",
+  "license": "MIT"
+}

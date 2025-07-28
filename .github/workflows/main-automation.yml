@@ -33,3 +33,8 @@ jobs:
     uses: ./.github/workflows/enable-security-features.yml
     needs: enable-advanced-security
     secrets: inherit
+
+  verify-security-status:
+    uses: ./.github/workflows/verify-security-status.yml
+    needs: enable-security-features
+    secrets: inherit

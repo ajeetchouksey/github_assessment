@@ -1,0 +1,72 @@
+name: Security Status Verification
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * 1' # Weekly on Monday at 8 AM
+
+jobs:
+  verify-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      
+      - name: Install dependencies
+        run: pip install requests
+      
+      - name: Check Security Status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          python3 << 'EOF'
+          import requests
+          import os
+          
+          def check_security_status():
+              headers = {
+                  'Authorization': f'token {os.environ["GITHUB_TOKEN"]}',
+                  'Accept': 'application/vnd.github+json'
+              }
+              
+              repo_url = 'https://api.github.com/repos/${{ github.repository }}'
+              response = requests.get(repo_url, headers=headers)
+              repo_data = response.json()
+              
+              print("🔍 Security Status Report")
+              print("=" * 40)
+              
+              security = repo_data.get('security_and_analysis', {})
+              
+              # Check each security feature
+              features = {
+                  'Advanced Security': security.get('advanced_security', {}).get('status'),
+                  'Secret Scanning': security.get('secret_scanning', {}).get('status'),
+                  'Push Protection': security.get('secret_scanning_push_protection', {}).get('status'),
+                  'Vulnerability Alerts': 'enabled' if repo_data.get('has_vulnerability_alerts') else 'disabled'
+              }
+              
+              all_enabled = True
+              for feature, status in features.items():
+                  enabled = status == 'enabled'
+                  icon = '✅' if enabled else '❌'
+                  print(f"{icon} {feature}: {status or 'disabled'}")
+                  if not enabled:
+                      all_enabled = False
+              
+              if all_enabled:
+                  print("\n🎉 All security features are properly enabled!")
+              else:
+                  print("\n⚠️  Some security features need attention")
+                  
+              return all_enabled
+          
+          success = check_security_status()
+          exit(0 if success else 1)
+          EOF
