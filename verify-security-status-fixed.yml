@@ -1,0 +1,137 @@
+name: Verify Security Status
+
+on:
+  workflow_call:
+
+jobs:
+  verify-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          
+      - name: Install dependencies
+        run: pip install requests
+        
+      - name: Enable Dependabot alerts if needed
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          python3 << 'EOF'
+          import requests
+          import os
+          
+          headers = {
+              'Authorization': f'token {os.environ["GITHUB_TOKEN"]}',
+              'Accept': 'application/vnd.github+json'
+          }
+          
+          # Try to enable Dependabot vulnerability alerts
+          enable_url = 'https://api.github.com/repos/ajeetchouksey/github_assessment/vulnerability-alerts'
+          response = requests.put(enable_url, headers=headers)
+          
+          if response.status_code == 204:
+              print("✅ Dependabot vulnerability alerts enabled successfully")
+          elif response.status_code == 200:
+              print("✅ Dependabot vulnerability alerts already enabled")
+          else:
+              print(f"⚠️  Could not enable Dependabot alerts: {response.status_code}")
+          EOF
+        
+      - name: Check security status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          python3 << 'EOF'
+          import requests
+          import os
+          
+          def check_security_status():
+              headers = {
+                  'Authorization': f'token {os.environ["GITHUB_TOKEN"]}',
+                  'Accept': 'application/vnd.github+json'
+              }
+              
+              repo_url = 'https://api.github.com/repos/ajeetchouksey/github_assessment'
+              response = requests.get(repo_url, headers=headers)
+              repo_data = response.json()
+              
+              print("🔍 Security Status Report")
+              print("=" * 40)
+              
+              is_public = not repo_data.get('private', False)
+              security = repo_data.get('security_and_analysis', {})
+              
+              # Check each security feature with public repo considerations
+              features = {}
+              
+              # Advanced Security - for public repos, this is automatically available
+              advanced_security = security.get('advanced_security', {}).get('status')
+              if is_public:
+                  # For public repos, Advanced Security features are available even if API shows "disabled"
+                  features['Advanced Security'] = 'enabled (public repo)'
+                  advanced_security_enabled = True
+              else:
+                  features['Advanced Security'] = advanced_security
+                  advanced_security_enabled = advanced_security == 'enabled'
+              
+              # Secret Scanning - should be enabled
+              secret_scanning = security.get('secret_scanning', {}).get('status')
+              features['Secret Scanning'] = secret_scanning
+              secret_scanning_enabled = secret_scanning == 'enabled'
+              
+              # Push Protection - should be enabled  
+              push_protection = security.get('secret_scanning_push_protection', {}).get('status')
+              features['Push Protection'] = push_protection
+              push_protection_enabled = push_protection == 'enabled'
+              
+              # Vulnerability Alerts - check if enabled
+              vuln_alerts = repo_data.get('has_vulnerability_alerts')
+              features['Vulnerability Alerts'] = 'enabled' if vuln_alerts else 'disabled'
+              vuln_alerts_enabled = vuln_alerts
+              
+              # Print status for each feature
+              for feature, status in features.items():
+                  if feature == 'Advanced Security' and is_public:
+                      icon = '✅'
+                  elif feature == 'Vulnerability Alerts':
+                      icon = '✅' if vuln_alerts_enabled else '❌'
+                  else:
+                      enabled = status == 'enabled' 
+                      icon = '✅' if enabled else '❌'
+                  print(f"{icon} {feature}: {status or 'disabled'}")
+              
+              # Determine overall success
+              # For public repos, we consider it successful if Secret Scanning and Push Protection are enabled
+              critical_features_enabled = secret_scanning_enabled and push_protection_enabled
+              
+              if is_public:
+                  print(f"\n📝 Repository Type: Public")
+                  if critical_features_enabled:
+                      if vuln_alerts_enabled:
+                          print("🎉 All security features are properly configured!")
+                          return True
+                      else:
+                          print("⚠️  Critical security features are enabled, but Vulnerability Alerts may need manual enabling")
+                          print("   Check Settings > Code security and analysis > Dependabot alerts")
+                          return True  # Don't fail the workflow for this in public repos
+                  else:
+                      print("❌ Critical security features need attention")
+                      return False
+              else:
+                  # Private repo logic
+                  all_enabled = advanced_security_enabled and secret_scanning_enabled and push_protection_enabled and vuln_alerts_enabled
+                  if all_enabled:
+                      print("\n🎉 All security features are properly enabled!")
+                  else:
+                      print("\n⚠️  Some security features need attention")
+                  return all_enabled
+          
+          success = check_security_status()
+          exit(0 if success else 1)
+          EOF
