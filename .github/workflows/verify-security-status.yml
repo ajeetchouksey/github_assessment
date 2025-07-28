@@ -2,6 +2,28 @@ name: Verify Security Status
 
 on:
   workflow_call:
+    inputs:
+      server-type:
+        description: 'GitHub server type (github-com, ghes, ghec)'
+        required: false
+        type: string
+        default: 'github-com'
+      supports-secret-scanning:
+        description: 'Whether server supports secret scanning'
+        required: false
+        type: string
+        default: 'true'
+  workflow_dispatch:
+    inputs:
+      server-type:
+        description: 'GitHub server type (github-com, ghes, ghec)'
+        required: false
+        type: choice
+        options:
+          - github-com
+          - ghes
+          - ghec
+        default: 'github-com'
 
 jobs:
   verify-security:
@@ -9,6 +31,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        
+      - name: Log server type
+        run: |
+          echo "🏢 GitHub Server Type: ${{ inputs.server-type || 'github-com' }}"
+          echo "🔍 Secret Scanning Support: ${{ inputs.supports-secret-scanning || 'true' }}"
         
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -31,8 +58,17 @@ jobs:
               'Accept': 'application/vnd.github+json'
           }
           
+          # Determine API URL based on server type
+          server_type = "${{ inputs.server-type or 'github-com' }}"
+          if server_type == "ghes":
+              api_base = os.environ.get('GITHUB_API_URL', 'https://api.github.com')
+          else:
+              api_base = 'https://api.github.com'
+          
+          print(f"Using API base: {api_base}")
+          
           # Try to enable Dependabot vulnerability alerts
-          enable_url = 'https://api.github.com/repos/${{ github.repository }}/vulnerability-alerts'
+          enable_url = f'{api_base}/repos/${{ github.repository }}/vulnerability-alerts'
           response = requests.put(enable_url, headers=headers)
           
           if response.status_code == 204:
@@ -41,9 +77,12 @@ jobs:
               print("✅ Dependabot vulnerability alerts already enabled")
           else:
               print(f"⚠️  Could not enable Dependabot alerts: {response.status_code}")
+              if server_type == "ghes":
+                  print("   This may be expected for GHES without proper Dependabot configuration")
           EOF
         
       - name: Check security status
+        if: ${{ inputs.supports-secret-scanning == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
@@ -57,12 +96,21 @@ jobs:
                   'Accept': 'application/vnd.github+json'
               }
               
-              repo_url = 'https://api.github.com/repos/${{ github.repository }}'
+              # Determine API URL based on server type
+              server_type = "${{ inputs.server-type or 'github-com' }}"
+              if server_type == "ghes":
+                  api_base = os.environ.get('GITHUB_API_URL', 'https://api.github.com')
+              else:
+                  api_base = 'https://api.github.com'
+              
+              repo_url = f'{api_base}/repos/${{ github.repository }}'
               response = requests.get(repo_url, headers=headers)
               repo_data = response.json()
               
               print("🔍 Security Status Report")
               print("=" * 40)
+              print(f"🏢 Server Type: {server_type}")
+              print(f"🌐 API Base: {api_base}")
               
               is_public = not repo_data.get('private', False)
               security = repo_data.get('security_and_analysis', {})
@@ -94,6 +142,9 @@ jobs:
               
               # Print status for each feature with public repo handling
               print(f"✅ Advanced Security: {features['Advanced Security']}")
+              
+              if server_type == "ghes":
+                  print("ℹ️  GHES Note: Security features depend on server configuration and licensing")
               
               if is_public:
                   # For public repos, don't fail if API reports these as disabled
@@ -134,3 +185,10 @@ jobs:
           success = check_security_status()
           exit(0 if success else 1)
           EOF
+          
+      - name: Skip security status check for unsupported server
+        if: ${{ inputs.supports-secret-scanning != 'true' }}
+        run: |
+          echo "⏭️  Skipping security status check"
+          echo "   Server type: ${{ inputs.server-type || 'github-com' }}"
+          echo "   Reason: Secret scanning not supported on this server configuration"

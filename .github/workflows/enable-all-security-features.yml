@@ -2,7 +2,38 @@ name: Enable All Security Features
 
 on:
   workflow_call:
+    inputs:
+      server-type:
+        description: 'GitHub server type (github-com, ghes, ghec)'
+        required: false
+        type: string
+        default: 'github-com'
+      supports-advanced-security:
+        description: 'Whether server supports GitHub Advanced Security features'
+        required: false
+        type: string
+        default: 'true'
+      supports-secret-scanning:
+        description: 'Whether server supports secret scanning'
+        required: false
+        type: string
+        default: 'true'
+      supports-code-scanning:
+        description: 'Whether server supports code scanning'
+        required: false
+        type: string
+        default: 'true'
   workflow_dispatch:
+    inputs:
+      server-type:
+        description: 'GitHub server type (github-com, ghes, ghec)'
+        required: false
+        type: choice
+        options:
+          - github-com
+          - ghes
+          - ghec
+        default: 'github-com'
 
 jobs:
   enable-security:
@@ -15,6 +46,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Log server capabilities
+        run: |
+          echo "🏢 GitHub Server Type: ${{ inputs.server-type || 'github-com' }}"
+          echo "🔒 Advanced Security Support: ${{ inputs.supports-advanced-security || 'true' }}"
+          echo "🔍 Secret Scanning Support: ${{ inputs.supports-secret-scanning || 'true' }}"
+          echo "📊 Code Scanning Support: ${{ inputs.supports-code-scanning || 'true' }}"
+
       - name: Install GitHub CLI
         run: |
           sudo apt-get update
@@ -22,11 +60,22 @@ jobs:
 
 
       - name: Enable all security features via API (smart handling)
+        if: ${{ inputs.supports-advanced-security == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
           set +e
           echo "Attempting to enable all security features via API..."
+          
+          SERVER_TYPE="${{ inputs.server-type || 'github-com' }}"
+          API_URL="${GITHUB_API_URL:-https://api.github.com}"
+          
+          echo "Using API URL: $API_URL"
+          
+          # Adjust API endpoint for GHES
+          if [[ "$SERVER_TYPE" == "ghes" ]]; then
+            echo "🏢 GHES detected: Using server-specific API endpoint"
+          fi
           
           # Try to enable security features with proper error handling
           gh api --method PATCH repos/${{ github.repository }}/security-and-analysis \
@@ -56,15 +105,20 @@ jobs:
           STATUS=$?
           if [ $STATUS -ne 0 ]; then
             echo "⚠️  Some security features could not be enabled automatically."
-            echo "This is expected for public repositories or if your token lacks permissions."
+            echo "This is expected for public repositories, GHES without proper licensing, or if your token lacks permissions."
             echo "Please enable missing features manually in the GitHub UI:"
-            echo "https://github.com/${{ github.repository }}/settings/security_analysis"
+            if [[ "$SERVER_TYPE" == "ghes" ]]; then
+              echo "${GITHUB_SERVER_URL:-https://github.com}/${{ github.repository }}/settings/security_analysis"
+            else
+              echo "https://github.com/${{ github.repository }}/settings/security_analysis"
+            fi
           else
             echo "✅ Security features enabled via API."
           fi
           set -e
 
       - name: Enable grouped security updates (smart handling)
+        if: ${{ inputs.supports-advanced-security == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
@@ -92,12 +146,21 @@ jobs:
           fi
           set -e
 
+      - name: Skip security features for unsupported server
+        if: ${{ inputs.supports-advanced-security != 'true' }}
+        run: |
+          echo "⏭️  Skipping advanced security features"
+          echo "   Server type: ${{ inputs.server-type || 'github-com' }}"
+          echo "   Reason: Advanced security features not supported on this server configuration"
+
       - name: Set branch protection for main (correct API usage)
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
           set +e
           echo "Setting up branch protection for main branch..."
+          
+          SERVER_TYPE="${{ inputs.server-type || 'github-com' }}"
           
           # Create branch protection with proper JSON structure
           gh api --method PUT repos/${{ github.repository }}/branches/main/protection \
@@ -125,7 +188,11 @@ jobs:
             echo "⚠️  Branch protection could not be set automatically."
             echo "This may be due to insufficient permissions or repository settings."
             echo "Please configure branch protection manually at:"
-            echo "https://github.com/${{ github.repository }}/settings/branches"
+            if [[ "$SERVER_TYPE" == "ghes" ]]; then
+              echo "${GITHUB_SERVER_URL:-https://github.com}/${{ github.repository }}/settings/branches"
+            else
+              echo "https://github.com/${{ github.repository }}/settings/branches"
+            fi
           else
             echo "✅ Branch protection enabled for main branch."
           fi

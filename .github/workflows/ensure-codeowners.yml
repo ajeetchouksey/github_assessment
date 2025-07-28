@@ -2,7 +2,23 @@ name: Ensure CODEOWNERS
 
 on:
     workflow_call:
+        inputs:
+            server-type:
+                description: 'GitHub server type (github-com, ghes, ghec)'
+                required: false
+                type: string
+                default: 'github-com'
     workflow_dispatch:
+        inputs:
+            server-type:
+                description: 'GitHub server type (github-com, ghes, ghec)'
+                required: false
+                type: choice
+                options:
+                  - github-com
+                  - ghes
+                  - ghec
+                default: 'github-com'
     schedule:
         - cron: '0 2 * * 6' # Runs at 2:00 AM every Saturday
     push:
@@ -13,6 +29,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+            
+            - name: Log server type
+              run: |
+                echo "🏢 GitHub Server Type: ${{ inputs.server-type || 'github-com' }}"
+                
             - uses: ./.github/actions/ensure-codeowners
               with:
                 owner: '@ajeetchouksey'

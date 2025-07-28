@@ -2,7 +2,33 @@ name: Ensure dependabot.yml
 
 on:
   workflow_call:
+    inputs:
+      server-type:
+        description: 'GitHub server type (github-com, ghes, ghec)'
+        required: false
+        type: string
+        default: 'github-com'
+      supports-dependency-review:
+        description: 'Whether server supports dependency review'
+        required: false
+        type: string
+        default: 'true'
   workflow_dispatch:
+    inputs:
+      server-type:
+        description: 'GitHub server type (github-com, ghes, ghec)'
+        required: false
+        type: choice
+        options:
+          - github-com
+          - ghes
+          - ghec
+        default: 'github-com'
+      supports-dependency-review:
+        description: 'Whether server supports dependency review'
+        required: false
+        type: boolean
+        default: true
   push:
     branches: [main, 'feature/*']
   schedule:
@@ -13,6 +39,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Log server capabilities
+        run: |
+          echo "🏢 GitHub Server Type: ${{ inputs.server-type || 'github-com' }}"
+          echo "📊 Dependency Review Support: ${{ inputs.supports-dependency-review || 'true' }}"
+          
+      - name: Check server supports Dependabot
+        id: dependabot_check
+        run: |
+          SERVER_TYPE="${{ inputs.server-type || 'github-com' }}"
+          if [[ "$SERVER_TYPE" == "ghes" ]]; then
+            echo "⚠️  GHES detected: Dependabot availability depends on server configuration"
+            echo "enabled=conditional" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Dependabot fully supported on $SERVER_TYPE"
+            echo "enabled=true" >> $GITHUB_OUTPUT
+          fi
       - name: Check for package.json
         id: npm_check
         run: |
@@ -30,7 +73,7 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
       - name: Ensure dependabot for pip if requirements.txt exists
-        if: steps.python_check.outputs.exists == 'true'
+        if: steps.python_check.outputs.exists == 'true' && steps.dependabot_check.outputs.enabled != 'false'
         uses: ./.github/actions/ensure-dependabot
         with:
           package-ecosystem: 'pip'
@@ -50,7 +93,7 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
       - name: Ensure dependabot for maven if pom.xml exists
-        if: steps.maven_check.outputs.exists == 'true'
+        if: steps.maven_check.outputs.exists == 'true' && steps.dependabot_check.outputs.enabled != 'false'
         uses: ./.github/actions/ensure-dependabot
         with:
           package-ecosystem: 'maven'
@@ -62,7 +105,7 @@ jobs:
           allow: ''
           ignore: ''
       - name: Ensure dependabot for npm if package.json exists
-        if: steps.npm_check.outputs.exists == 'true'
+        if: steps.npm_check.outputs.exists == 'true' && steps.dependabot_check.outputs.enabled != 'false'
         uses: ./.github/actions/ensure-dependabot
         with:
           package-ecosystem: 'npm'

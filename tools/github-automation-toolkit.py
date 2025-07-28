@@ -74,6 +74,131 @@ class GitHubAutomationToolkit:
             print(f"   ❌ Token validation error: {e}")
             return False
     
+    def detect_github_server_type(self):
+        """Detect GitHub server type and capabilities"""
+        self.print_header("🏢 GitHub Server Type Detection")
+        
+        # Get environment variables
+        api_url = os.environ.get('GITHUB_API_URL', 'https://api.github.com')
+        server_url = os.environ.get('GITHUB_SERVER_URL', 'https://github.com')
+        
+        print(f"🌐 API URL: {api_url}")
+        print(f"🏠 Server URL: {server_url}")
+        
+        # Determine server type
+        if api_url == "https://api.github.com":
+            if server_url == "https://github.com":
+                server_type = "github-com"
+                server_description = "GitHub.com"
+            else:
+                server_type = "ghec"
+                server_description = "GitHub Enterprise Cloud"
+        else:
+            server_type = "ghes"
+            server_description = "GitHub Enterprise Server"
+        
+        print(f"📍 Detected: {server_description}")
+        
+        # Try to get server version for GHES
+        server_version = "unknown"
+        if server_type == "ghes":
+            print("\n🔍 Attempting to detect GHES version...")
+            gh_token = os.environ.get('GH_ADMIN_TOKEN') or os.environ.get('GITHUB_TOKEN')
+            
+            if gh_token:
+                try:
+                    headers = {
+                        'Authorization': f'token {gh_token}',
+                        'Accept': 'application/vnd.github+json'
+                    }
+                    response = requests.get(f'{api_url}/meta', headers=headers, timeout=10)
+                    
+                    if response.status_code == 200:
+                        meta_data = response.json()
+                        server_version = meta_data.get('installed_version', 'unknown')
+                        print(f"📋 GHES Version: {server_version}")
+                    else:
+                        print(f"⚠️  Could not fetch server meta (HTTP {response.status_code})")
+                        
+                except requests.exceptions.RequestException as e:
+                    print(f"⚠️  Error fetching server meta: {e}")
+            else:
+                print("⚠️  No GitHub token available for version detection")
+        
+        # Determine feature support
+        capabilities = self._determine_server_capabilities(server_type, server_version)
+        
+        # Display results
+        self.print_section("Server Capabilities")
+        print(f"   🏢 Server Type: {server_type}")
+        print(f"   📋 Version: {server_version}")
+        print(f"   🔒 Advanced Security: {'✅' if capabilities['advanced_security'] else '❌'}")
+        print(f"   🔍 Secret Scanning: {'✅' if capabilities['secret_scanning'] else '❌'}")
+        print(f"   📊 Code Scanning: {'✅' if capabilities['code_scanning'] else '❌'}")
+        print(f"   📈 Dependency Review: {'✅' if capabilities['dependency_review'] else '❌'}")
+        
+        return {
+            'server_type': server_type,
+            'server_description': server_description,
+            'api_url': api_url,
+            'server_url': server_url,
+            'version': server_version,
+            'capabilities': capabilities
+        }
+    
+    def _determine_server_capabilities(self, server_type, server_version):
+        """Determine what features are supported based on server type and version"""
+        
+        if server_type in ["github-com", "ghec"]:
+            # GitHub.com and GHEC support all features
+            return {
+                'advanced_security': True,
+                'secret_scanning': True,
+                'code_scanning': True,
+                'dependency_review': True
+            }
+        
+        elif server_type == "ghes":
+            # GHES feature support depends on version
+            capabilities = {
+                'advanced_security': False,
+                'secret_scanning': False,
+                'code_scanning': False,
+                'dependency_review': False
+            }
+            
+            if server_version and server_version != "unknown":
+                try:
+                    # Extract major.minor version
+                    version_parts = server_version.split('.')
+                    if len(version_parts) >= 2:
+                        major = int(version_parts[0])
+                        minor = int(version_parts[1])
+                        version_float = major + (minor / 10.0)
+                        
+                        # GitHub Advanced Security available since GHES 3.0
+                        if version_float >= 3.0:
+                            capabilities['advanced_security'] = True
+                            capabilities['secret_scanning'] = True
+                            capabilities['code_scanning'] = True
+                        
+                        # Dependency review available since GHES 3.2
+                        if version_float >= 3.2:
+                            capabilities['dependency_review'] = True
+                            
+                except (ValueError, IndexError):
+                    print(f"⚠️  Could not parse version: {server_version}")
+            
+            return capabilities
+        
+        # Default to no advanced features for unknown server types
+        return {
+            'advanced_security': False,
+            'secret_scanning': False,
+            'code_scanning': False,
+            'dependency_review': False
+        }
+
     def diagnose_environment(self):
         """Diagnose environment setup"""
         self.print_header("🔍 GitHub Automation Environment Diagnostics")
@@ -575,6 +700,7 @@ def main():
     parser.add_argument('--setup-report', action='store_true', help='Generate setup report')
     parser.add_argument('--cleanup', action='store_true', help='Clean up repository structure')
     parser.add_argument('--validate', action='store_true', help='Validate workflow files')
+    parser.add_argument('--detect-server', action='store_true', help='Detect GitHub server type and capabilities')
     parser.add_argument('--all', action='store_true', help='Run all operations')
     
     args = parser.parse_args()
@@ -596,6 +722,9 @@ def main():
         print("Professional pilot testing strongly recommended.")
         print("═" * 70)
         
+        # Server type detection
+        server_info = toolkit.detect_github_server_type()
+        
         # Validation workflows
         toolkit.validate_workflows()
         
@@ -613,12 +742,17 @@ def main():
         toolkit.cleanup_repository()
         
         print(f"\n📊 Toolkit Summary:")
+        print(f"   Server Type: {server_info['server_description']}")
         print(f"   Issues found: {len(issues)}")
         print(f"   Status: {'❌ Needs attention' if issues else '✅ Ready to run'}")
         
         return len(issues) == 0
     
     # Individual operations
+    if args.detect_server:
+        toolkit.detect_github_server_type()
+        return True
+    
     if args.diagnose:
         issues = toolkit.diagnose_environment()
         toolkit.print_solutions(issues)

@@ -2,7 +2,23 @@ name: Ensure Advanced PR Templates
 
 on:
   workflow_call:
+    inputs:
+      server-type:
+        description: 'GitHub server type (github-com, ghes, ghec)'
+        required: false
+        type: string
+        default: 'github-com'
   workflow_dispatch:
+    inputs:
+      server-type:
+        description: 'GitHub server type (github-com, ghes, ghec)'
+        required: false
+        type: choice
+        options:
+          - github-com
+          - ghes
+          - ghec
+        default: 'github-com'
   push:
     branches: [main, 'feature/*']
   schedule:
@@ -13,6 +29,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Log server type
+        run: |
+          echo "🏢 GitHub Server Type: ${{ inputs.server-type || 'github-com' }}"
+          
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

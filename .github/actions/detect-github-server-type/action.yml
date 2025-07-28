@@ -1,0 +1,152 @@
+name: 'Detect GitHub Server Type'
+description: 'Detect the type of GitHub server (GitHub.com, GHES, GHEC) and determine feature compatibility'
+author: 'GitHub Copilot Automation System'
+
+outputs:
+  server-type:
+    description: 'Type of GitHub server (github-com, ghes, ghec)'
+    value: ${{ steps.detect.outputs.server-type }}
+  api-url:
+    description: 'GitHub API URL for this server'
+    value: ${{ steps.detect.outputs.api-url }}
+  server-version:
+    description: 'GitHub server version (for GHES)'
+    value: ${{ steps.detect.outputs.server-version }}
+  supports-advanced-security:
+    description: 'Whether server supports GitHub Advanced Security features'
+    value: ${{ steps.detect.outputs.supports-advanced-security }}
+  supports-secret-scanning:
+    description: 'Whether server supports secret scanning'
+    value: ${{ steps.detect.outputs.supports-secret-scanning }}
+  supports-code-scanning:
+    description: 'Whether server supports code scanning'
+    value: ${{ steps.detect.outputs.supports-code-scanning }}
+  supports-dependency-review:
+    description: 'Whether server supports dependency review'
+    value: ${{ steps.detect.outputs.supports-dependency-review }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect GitHub Server Type
+      id: detect
+      shell: bash
+      env:
+        GH_TOKEN: ${{ env.GH_TOKEN || env.GITHUB_TOKEN }}
+      run: |
+        set -e
+        
+        echo "🔍 Detecting GitHub server type..."
+        
+        # Get the API URL from environment
+        API_URL="${GITHUB_API_URL:-https://api.github.com}"
+        SERVER_URL="${GITHUB_SERVER_URL:-https://github.com}"
+        
+        echo "API URL: $API_URL"
+        echo "Server URL: $SERVER_URL"
+        
+        # Determine server type based on API URL
+        if [[ "$API_URL" == "https://api.github.com" ]]; then
+          if [[ "$SERVER_URL" == "https://github.com" ]]; then
+            SERVER_TYPE="github-com"
+            echo "📍 Detected: GitHub.com"
+          else
+            SERVER_TYPE="ghec"
+            echo "📍 Detected: GitHub Enterprise Cloud"
+          fi
+        else
+          SERVER_TYPE="ghes"
+          echo "📍 Detected: GitHub Enterprise Server"
+        fi
+        
+        # Set outputs
+        echo "server-type=$SERVER_TYPE" >> $GITHUB_OUTPUT
+        echo "api-url=$API_URL" >> $GITHUB_OUTPUT
+        
+        # Try to get server version for GHES
+        SERVER_VERSION=""
+        if [[ "$SERVER_TYPE" == "ghes" ]] && [[ -n "$GH_TOKEN" ]]; then
+          echo "🔍 Attempting to detect GHES version..."
+          
+          # Try to get meta information from API
+          if RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" "$API_URL/meta" 2>/dev/null); then
+            if SERVER_VERSION=$(echo "$RESPONSE" | grep -o '"installed_version":"[^"]*"' | cut -d'"' -f4 2>/dev/null); then
+              echo "📋 GHES Version: $SERVER_VERSION"
+            else
+              echo "⚠️  Could not determine GHES version from API response"
+            fi
+          else
+            echo "⚠️  Could not fetch server meta information"
+          fi
+        fi
+        
+        echo "server-version=${SERVER_VERSION:-unknown}" >> $GITHUB_OUTPUT
+        
+        # Determine feature support based on server type and version
+        case "$SERVER_TYPE" in
+          "github-com")
+            SUPPORTS_ADVANCED_SECURITY="true"
+            SUPPORTS_SECRET_SCANNING="true" 
+            SUPPORTS_CODE_SCANNING="true"
+            SUPPORTS_DEPENDENCY_REVIEW="true"
+            echo "✅ GitHub.com: All features supported"
+            ;;
+          "ghec")
+            SUPPORTS_ADVANCED_SECURITY="true"
+            SUPPORTS_SECRET_SCANNING="true"
+            SUPPORTS_CODE_SCANNING="true"
+            SUPPORTS_DEPENDENCY_REVIEW="true"
+            echo "✅ GHEC: All features supported"
+            ;;
+          "ghes")
+            # Feature support depends on GHES version
+            if [[ -n "$SERVER_VERSION" ]] && [[ "$SERVER_VERSION" != "unknown" ]]; then
+              # Extract major.minor version for comparison
+              MAJOR_MINOR=$(echo "$SERVER_VERSION" | grep -o '^[0-9]\+\.[0-9]\+' || echo "0.0")
+              
+              # GitHub Advanced Security available since GHES 3.0
+              if [[ $(echo "$MAJOR_MINOR >= 3.0" | bc -l 2>/dev/null || echo "0") == "1" ]]; then
+                SUPPORTS_ADVANCED_SECURITY="true"
+                SUPPORTS_SECRET_SCANNING="true"
+                SUPPORTS_CODE_SCANNING="true"
+              else
+                SUPPORTS_ADVANCED_SECURITY="false"
+                SUPPORTS_SECRET_SCANNING="false"
+                SUPPORTS_CODE_SCANNING="false"
+              fi
+              
+              # Dependency review available since GHES 3.2
+              if [[ $(echo "$MAJOR_MINOR >= 3.2" | bc -l 2>/dev/null || echo "0") == "1" ]]; then
+                SUPPORTS_DEPENDENCY_REVIEW="true"
+              else
+                SUPPORTS_DEPENDENCY_REVIEW="false"
+              fi
+              
+              echo "📋 GHES $SERVER_VERSION feature support determined"
+            else
+              # Conservative defaults for unknown GHES version
+              SUPPORTS_ADVANCED_SECURITY="false"
+              SUPPORTS_SECRET_SCANNING="false"
+              SUPPORTS_CODE_SCANNING="false"
+              SUPPORTS_DEPENDENCY_REVIEW="false"
+              echo "⚠️  Unknown GHES version: Disabling advanced features for safety"
+            fi
+            ;;
+        esac
+        
+        # Set feature support outputs
+        echo "supports-advanced-security=$SUPPORTS_ADVANCED_SECURITY" >> $GITHUB_OUTPUT
+        echo "supports-secret-scanning=$SUPPORTS_SECRET_SCANNING" >> $GITHUB_OUTPUT
+        echo "supports-code-scanning=$SUPPORTS_CODE_SCANNING" >> $GITHUB_OUTPUT
+        echo "supports-dependency-review=$SUPPORTS_DEPENDENCY_REVIEW" >> $GITHUB_OUTPUT
+        
+        # Summary
+        echo ""
+        echo "🎯 Detection Summary:"
+        echo "   Server Type: $SERVER_TYPE"
+        echo "   API URL: $API_URL"
+        echo "   Version: ${SERVER_VERSION:-unknown}"
+        echo "   Advanced Security: $SUPPORTS_ADVANCED_SECURITY"
+        echo "   Secret Scanning: $SUPPORTS_SECRET_SCANNING"
+        echo "   Code Scanning: $SUPPORTS_CODE_SCANNING"
+        echo "   Dependency Review: $SUPPORTS_DEPENDENCY_REVIEW"

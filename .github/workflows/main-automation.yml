@@ -14,31 +14,70 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-server-type:
+    runs-on: ubuntu-latest
+    outputs:
+      server-type: ${{ steps.detect.outputs.server-type }}
+      api-url: ${{ steps.detect.outputs.api-url }}
+      server-version: ${{ steps.detect.outputs.server-version }}
+      supports-advanced-security: ${{ steps.detect.outputs.supports-advanced-security }}
+      supports-secret-scanning: ${{ steps.detect.outputs.supports-secret-scanning }}
+      supports-code-scanning: ${{ steps.detect.outputs.supports-code-scanning }}
+      supports-dependency-review: ${{ steps.detect.outputs.supports-dependency-review }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Detect GitHub Server Type
+        id: detect
+        uses: ./.github/actions/detect-github-server-type
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN || secrets.GITHUB_TOKEN }}
   ensure-codeowners:
+    needs: detect-server-type
     uses: ./.github/workflows/ensure-codeowners.yml
+    with:
+      server-type: ${{ needs.detect-server-type.outputs.server-type }}
     secrets: inherit
 
   ensure-dependabot:
+    needs: detect-server-type
     uses: ./.github/workflows/ensure-dependabot.yml
+    with:
+      server-type: ${{ needs.detect-server-type.outputs.server-type }}
+      supports-dependency-review: ${{ needs.detect-server-type.outputs.supports-dependency-review }}
     secrets: inherit
 
   ensure-pr-template:
+    needs: detect-server-type
     uses: ./.github/workflows/ensure-pr-template.yml
+    with:
+      server-type: ${{ needs.detect-server-type.outputs.server-type }}  
     secrets: inherit
 
   ensure-pr-templates-advanced:
     uses: ./.github/workflows/ensure-pr-templates-advanced.yml
-    needs: ensure-pr-template
+    needs: [detect-server-type, ensure-pr-template]
+    with:
+      server-type: ${{ needs.detect-server-type.outputs.server-type }}
     secrets: inherit
 
   enable-all-security-features:
-    if: ${{ inputs.skip_security != 'true' }}
+    if: ${{ inputs.skip_security != 'true' && needs.detect-server-type.outputs.supports-advanced-security == 'true' }}
     uses: ./.github/workflows/enable-all-security-features.yml
-    needs: [ensure-codeowners, ensure-dependabot, ensure-pr-template, ensure-pr-templates-advanced]
+    needs: [detect-server-type, ensure-codeowners, ensure-dependabot, ensure-pr-template, ensure-pr-templates-advanced]
+    with:
+      server-type: ${{ needs.detect-server-type.outputs.server-type }}
+      supports-advanced-security: ${{ needs.detect-server-type.outputs.supports-advanced-security }}
+      supports-secret-scanning: ${{ needs.detect-server-type.outputs.supports-secret-scanning }}
+      supports-code-scanning: ${{ needs.detect-server-type.outputs.supports-code-scanning }}
     secrets: inherit
 
   verify-security-status:
-    if: ${{ inputs.skip_security != 'true' }}
+    if: ${{ inputs.skip_security != 'true' && needs.detect-server-type.outputs.supports-advanced-security == 'true' }}
     uses: ./.github/workflows/verify-security-status.yml
-    needs: enable-all-security-features
+    needs: [detect-server-type, enable-all-security-features]
+    with:
+      server-type: ${{ needs.detect-server-type.outputs.server-type }}
+      supports-secret-scanning: ${{ needs.detect-server-type.outputs.supports-secret-scanning }}
     secrets: inherit
