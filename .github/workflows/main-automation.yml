@@ -31,4 +31,5 @@ jobs:
 
   enable-security-features:
     uses: ./.github/workflows/enable-security-features.yml
+    needs: enable-advanced-security
     secrets: inherit
