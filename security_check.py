@@ -41,27 +41,39 @@ def check_security_status(repo_owner, repo_name, token):
         
         # Advanced Security
         advanced_security = security_analysis.get('advanced_security', {})
-        print(f"Advanced Security: {'✅ Enabled' if advanced_security.get('status') == 'enabled' else '❌ Disabled'}")
-        
-        # Secret Scanning
+        adv_sec_enabled = advanced_security.get('status') == 'enabled'
         secret_scanning = security_analysis.get('secret_scanning', {})
-        print(f"Secret Scanning: {'✅ Enabled' if secret_scanning.get('status') == 'enabled' else '❌ Disabled'}")
-        
-        # Secret Scanning Push Protection
+        secret_scanning_enabled = secret_scanning.get('status') == 'enabled'
         secret_scanning_push = security_analysis.get('secret_scanning_push_protection', {})
-        print(f"Push Protection: {'✅ Enabled' if secret_scanning_push.get('status') == 'enabled' else '❌ Disabled'}")
-        
-        # Dependabot
-        print(f"Vulnerability Alerts: {'✅ Enabled' if repo_data.get('has_vulnerability_alerts') else '❌ Disabled'}")
-        
-        # Additional checks
+        push_protection_enabled = secret_scanning_push.get('status') == 'enabled'
+        vuln_alerts_enabled = repo_data.get('has_vulnerability_alerts')
+
+        print(f"Advanced Security: {'✅ Enabled' if adv_sec_enabled else '❌ Disabled'}")
+        if repo_data.get('visibility') == 'public' or not repo_data.get('private', False):
+            # Public repo logic: warn, don't fail
+            if not secret_scanning_enabled:
+                print("⚠️ Secret Scanning: API reports disabled, but public repos have it enabled by default.")
+            else:
+                print("✅ Secret Scanning: enabled")
+            if not push_protection_enabled:
+                print("⚠️ Push Protection: API reports disabled, but public repos have it enabled by default.")
+            else:
+                print("✅ Push Protection: enabled")
+            if not vuln_alerts_enabled:
+                print("⚠️ Vulnerability Alerts: Please enable manually in the UI if needed.")
+            else:
+                print("✅ Vulnerability Alerts: enabled")
+        else:
+            print(f"Secret Scanning: {'✅ Enabled' if secret_scanning_enabled else '❌ Disabled'}")
+            print(f"Push Protection: {'✅ Enabled' if push_protection_enabled else '❌ Disabled'}")
+            print(f"Vulnerability Alerts: {'✅ Enabled' if vuln_alerts_enabled else '❌ Disabled'}")
+
         print()
         print("📊 Additional Repository Features:")
         print("-" * 35)
         print(f"Issues: {'✅ Enabled' if repo_data.get('has_issues') else '❌ Disabled'}")
         print(f"Wiki: {'✅ Enabled' if repo_data.get('has_wiki') else '❌ Disabled'}")
         print(f"Projects: {'✅ Enabled' if repo_data.get('has_projects') else '❌ Disabled'}")
-        
         return True
         
     except requests.exceptions.RequestException as e:
