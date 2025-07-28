@@ -28,7 +28,6 @@ A **production-ready**, **enterprise-grade** toolkit for automating GitHub repos
 
 ---
 
-
 ## 🏁 **Getting Started**
 
 All onboarding, setup, and advanced documentation is now maintained in the [GitHub Wiki](https://github.com/ajeetchouksey/github_assessment/wiki/Home). Please refer to the wiki for:
