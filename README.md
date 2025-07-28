@@ -28,17 +28,21 @@ A **production-ready**, **enterprise-grade** toolkit for automating GitHub repos
 
 ---
 
+
 ## 🏁 **Getting Started**
 
-All onboarding, setup, and advanced documentation is now maintained in the [Wiki](wiki/Home). Please refer to the wiki for:
-- Prerequisites and quick start
-- Toolkit architecture and extensibility
-- Customization and configuration
-- Security and compliance
-- Troubleshooting and FAQ
-- Advanced usage and scaling
-- Contribution guidelines
-- Release notes and changelog
+All onboarding, setup, and advanced documentation is now maintained in the [GitHub Wiki](https://github.com/ajeetchouksey/github_assessment/wiki/Home). Please refer to the wiki for:
+
+- [🏁 Getting Started](https://github.com/ajeetchouksey/github_assessment/wiki/Getting-Started)
+- [🏗️ Toolkit Architecture](https://github.com/ajeetchouksey/github_assessment/wiki/Toolkit-Architecture)
+- [⚙️ Configuration & Customization](https://github.com/ajeetchouksey/github_assessment/wiki/Configuration-and-Customization)
+- [🔒 Security & Compliance](https://github.com/ajeetchouksey/github_assessment/wiki/Security-and-Compliance)
+- [🛠️ Troubleshooting & FAQ](https://github.com/ajeetchouksey/github_assessment/wiki/Troubleshooting-and-FAQ)
+- [🚀 Advanced Usage](https://github.com/ajeetchouksey/github_assessment/wiki/Advanced-Usage)
+- [🤝 Contributing & Community](https://github.com/ajeetchouksey/github_assessment/wiki/Contributing-and-Community)
+- [📝 Release Notes](https://github.com/ajeetchouksey/github_assessment/wiki/Release-Notes)
+
+> **Note:** For local development, see [`tools/github-automation-toolkit.py`](tools/github-automation-toolkit.py) and the [Toolkit Architecture](https://github.com/ajeetchouksey/github_assessment/wiki/Toolkit-Architecture) page for structure and extensibility details.
 
 ---
 
