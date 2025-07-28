@@ -1,0 +1,39 @@
+name: Enable GitHub Security Features
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  enable-security-features:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Enable Private Vulnerability Reporting
+        if: github.repository_visibility == 'private'
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          gh api -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}" \
+            -f private_vulnerability_reporting=true
+      - name: Enable Dependency Submission
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          gh api -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}" \
+            -f dependency_graph_enabled=true \
+            -f dependency_submission_enabled=true
+      - name: Enable Dependabot Alerts and Security Updates
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          gh api -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}" \
+            -f vulnerability_alerts=true
