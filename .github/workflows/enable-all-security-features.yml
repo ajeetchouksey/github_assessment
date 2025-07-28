@@ -1,0 +1,68 @@
+name: Enable All Security Features
+
+on:
+  workflow_dispatch:
+
+jobs:
+  enable-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up GitHub CLI
+        uses: cli/cli-action@v2
+
+      - name: Enable all security features via API
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          gh api --method PATCH repos/${{ github.repository }}/security-and-analysis \
+            -H "Accept: application/vnd.github+json" \
+            -f security_and_analysis[advanced_security][status]=enabled \
+            -f security_and_analysis[secret_scanning][status]=enabled \
+            -f security_and_analysis[secret_scanning_push_protection][status]=enabled \
+            -f security_and_analysis[dependabot_security_updates][status]=enabled \
+            -f security_and_analysis[dependency_graph][status]=enabled \
+            -f security_and_analysis[automatic_dependency_submission][status]=enabled
+
+      - name: Enable grouped security updates
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          gh api --method PATCH repos/${{ github.repository }}/security-and-analysis \
+            -H "Accept: application/vnd.github+json" \
+            -f security_and_analysis[grouped_security_updates][status]=enabled || echo "Grouped security updates may not be available."
+
+      - name: Set branch protection for main
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+        run: |
+          gh api --method PUT repos/${{ github.repository }}/branches/main/protection \
+            -H "Accept: application/vnd.github+json" \
+            -f required_status_checks.strict=true \
+            -f enforce_admins=true \
+            -f required_pull_request_reviews.dismiss_stale_reviews=true \
+            -f required_pull_request_reviews.require_code_owner_reviews=true \
+            -f restrictions=null
+
+      - name: Create sample dependabot.yml if missing
+        run: |
+          if [ ! -f .github/dependabot.yml ]; then
+            mkdir -p .github
+            echo "version: 2" > .github/dependabot.yml
+            echo "updates:" >> .github/dependabot.yml
+            echo "  - package-ecosystem: \"npm\"" >> .github/dependabot.yml
+            echo "    directory: \"/\"" >> .github/dependabot.yml
+            echo "    schedule:" >> .github/dependabot.yml
+            echo "      interval: \"weekly\"" >> .github/dependabot.yml
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add .github/dependabot.yml
+            git commit -m "Add sample dependabot.yml for version updates"
+            git push
+          fi
