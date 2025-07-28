@@ -19,10 +19,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gh
 
-      - name: Enable all security features via API
+
+      - name: Enable all security features via API (smart handling)
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
+          set -e
+          echo "Attempting to enable all security features via API..."
+          set +e
           gh api --method PATCH repos/${{ github.repository }}/security-and-analysis \
             -H "Accept: application/vnd.github+json" \
             -f security_and_analysis[advanced_security][status]=enabled \
@@ -31,14 +35,33 @@ jobs:
             -f security_and_analysis[dependabot_security_updates][status]=enabled \
             -f security_and_analysis[dependency_graph][status]=enabled \
             -f security_and_analysis[automatic_dependency_submission][status]=enabled
+          STATUS=$?
+          if [ $STATUS -ne 0 ]; then
+            echo "⚠️  Some security features could not be enabled automatically."
+            echo "This is expected for public repositories or if your token lacks permissions."
+            echo "Please enable missing features manually in the GitHub UI:"
+            echo "https://github.com/${{ github.repository }}/settings/security_analysis"
+          else
+            echo "✅ Security features enabled via API."
+          fi
+          set -e
 
-      - name: Enable grouped security updates
+      - name: Enable grouped security updates (smart handling)
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
+          set +e
           gh api --method PATCH repos/${{ github.repository }}/security-and-analysis \
             -H "Accept: application/vnd.github+json" \
-            -f security_and_analysis[grouped_security_updates][status]=enabled || echo "Grouped security updates may not be available."
+            -f security_and_analysis[grouped_security_updates][status]=enabled
+          STATUS=$?
+          if [ $STATUS -ne 0 ]; then
+            echo "⚠️  Grouped security updates could not be enabled automatically."
+            echo "If needed, enable manually in the UI."
+          else
+            echo "✅ Grouped security updates enabled via API."
+          fi
+          set -e
 
       - name: Set branch protection for main
         env:
