@@ -1,6 +1,8 @@
+
 name: Enable GitHub Security Features
 
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches: [main]
@@ -12,14 +14,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Enable Private Vulnerability Reporting
-        if: github.repository_visibility == 'private'
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
         run: |
-          gh api -X PATCH \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${{ github.repository }}" \
-            -f private_vulnerability_reporting=true
+          if [ "$(gh repo view ${{ github.repository }} --json visibility -q .visibility)" = "PRIVATE" ]; then
+            gh api -X PATCH \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}" \
+              -f private_vulnerability_reporting=true
+          fi
       - name: Enable Dependency Submission
         env:
           GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
