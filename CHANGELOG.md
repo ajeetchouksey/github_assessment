@@ -1,5 +1,6 @@
 # Changelog
 
+
 All notable changes to the GitHub Repository Automation Toolkit are documented in this file.
 
 ## [2.0.0] - 2025-07-28 - Repository Optimization & Restructure
