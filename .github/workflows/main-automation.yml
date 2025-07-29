@@ -1,3 +1,8 @@
+# Ensure required permissions for nested workflows
+permissions:
+  actions: write
+  contents: write
+  security-events: write
 name: Main Repository Automation
 
 on:
